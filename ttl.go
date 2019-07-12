@@ -5,6 +5,7 @@ import (
 	"io"
 	"runtime"
 	"strconv"
+	"strings"
 	"time"
 )
 
@@ -98,6 +99,7 @@ func (d *ttlDecoder) DecodeAll() ([]Triple, error) {
 
 // parseStart parses top context
 func parseStart(d *ttlDecoder) parseFn {
+
 	switch d.next().typ {
 	case tokenPrefix:
 		label := d.expect1As("prefix label", tokenPrefixLabel)
@@ -108,13 +110,21 @@ func parseStart(d *ttlDecoder) parseFn {
 		if tok.typ == tokenIRIRel {
 			// Resolve against document base IRI
 			d.ns[label.text] = d.base.str + tok.text
+
 		} else {
-			d.ns[label.text] = tok.text
+			if strings.HasPrefix(tok.text, "http://rdf.ebi.ac.uk/resource/chembl/") {
+				d.ns[label.text] = tok.text[36:]
+			} else if strings.HasPrefix(tok.text, "http://rdf.ebi.ac.uk/terms/chembl#") {
+				d.ns[label.text] = tok.text[34:]
+			} else {
+				d.ns[label.text] = tok.text
+			}
 		}
 		d.expect1As("directive trailing dot", tokenDot)
 	case tokenSparqlPrefix:
 		label := d.expect1As("prefix label", tokenPrefixLabel)
 		uri := d.expect1As("prefix IRI", tokenIRIAbs)
+		fmt.Println("enter4")
 		d.ns[label.text] = uri.text
 	case tokenBase:
 		tok := d.expectAs("base IRI", tokenIRIAbs, tokenIRIRel)
@@ -235,6 +245,9 @@ func parseSubject(d *ttlDecoder) parseFn {
 	tok := d.next()
 	switch tok.typ {
 	case tokenIRIAbs:
+		if strings.HasPrefix(tok.text, "http://rdf.ebi.ac.uk/resource/chembl") {
+			tok.text = tok.text[36:]
+		}
 		d.current.Subj = IRI{str: tok.text}
 	case tokenIRIRel:
 		d.current.Subj = IRI{str: d.base.str + tok.text}
